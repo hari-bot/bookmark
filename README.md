@@ -4,7 +4,7 @@ A real-time bookmark manager built with Next.js, Supabase, and Tailwind CSS. Use
 
 ## Live Demo
 
-[Deployed on Vercel](https://your-vercel-url.vercel.app) *(update after deployment)*
+[Deployed on Vercel](https://bookmark-omega-pink.vercel.app/)
 
 ## Features
 
@@ -66,6 +66,7 @@ CREATE POLICY "Users can delete own bookmarks" ON public.bookmarks
 ```
 
 Then enable **Realtime** for the `bookmarks` table:
+
 - Go to **Database → Replication** in the Supabase Dashboard
 - Toggle on the `bookmarks` table
 
