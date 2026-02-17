@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -14,17 +15,26 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-lg">
-        <div className="mb-6 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">Smart Bookmark</h1>
+    <div className="flex min-h-screen items-center justify-center bg-[#eef2f7]">
+      <div className="w-full max-w-md rounded-2xl bg-white p-10 shadow-lg">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/logo.png"
+            alt="Bookmarks"
+            width={56}
+            height={56}
+            className="mb-4 h-16 w-16"
+          />
+          <h1 className="text-2xl font-bold text-gray-900">
+            Welcome to Bookmarks
+          </h1>
           <p className="mt-2 text-sm text-gray-500">
-            Save and organize your bookmarks
+            Sign in to save and organize your bookmarks
           </p>
         </div>
         <button
           onClick={handleGoogleLogin}
-          className="flex w-full items-center justify-center gap-3 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
+          className="flex w-full items-center justify-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3.5 text-sm font-medium text-gray-700 shadow-sm transition-all hover:bg-gray-50 hover:shadow-md"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24">
             <path
@@ -46,6 +56,9 @@ export default function LoginPage() {
           </svg>
           Sign in with Google
         </button>
+        <p className="mt-6 text-center text-xs text-gray-400">
+          Your bookmarks are private and secure
+        </p>
       </div>
     </div>
   );
