@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type Bookmark = {
   id: string;
@@ -17,18 +16,11 @@ export function useBookmarksRealtime(
   userId: string
 ) {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks);
-  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const addBookmark = useCallback((bookmark: Bookmark) => {
     setBookmarks((prev) => {
       if (prev.some((b) => b.id === bookmark.id)) return prev;
       return [bookmark, ...prev];
-    });
-    // Broadcast to other tabs
-    channelRef.current?.send({
-      type: "broadcast",
-      event: "bookmark-added",
-      payload: bookmark,
     });
   }, []);
 
@@ -38,38 +30,70 @@ export function useBookmarksRealtime(
 
   useEffect(() => {
     const supabase = createClient();
+    let channelInstance: ReturnType<typeof supabase.channel> | null = null;
 
-    const channel = supabase
-      .channel(`bookmarks-${userId}`)
-      .on("broadcast", { event: "bookmark-added" }, (message) => {
-        const newBookmark = message.payload as Bookmark;
-        setBookmarks((prev) => {
-          if (prev.some((b) => b.id === newBookmark.id)) return prev;
-          return [newBookmark, ...prev];
-        });
-      })
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "bookmarks",
-        },
-        (payload) => {
-          const old = payload.old as Partial<Bookmark>;
-          if (old.id) {
-            setBookmarks((prev) => prev.filter((b) => b.id !== old.id));
+    async function setupRealtime() {
+      // Get the session and set auth BEFORE subscribing
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        supabase.realtime.setAuth(session.access_token);
+      }
+
+      // Now subscribe — the Realtime connection is authenticated
+      channelInstance = supabase
+        .channel("bookmarks-realtime")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "bookmarks",
+          },
+          (payload) => {
+            const newBookmark = payload.new as Bookmark;
+            if (newBookmark.user_id === userId) {
+              setBookmarks((prev) => {
+                if (prev.some((b) => b.id === newBookmark.id)) return prev;
+                return [newBookmark, ...prev];
+              });
+            }
           }
-        }
-      )
-      .subscribe((status) => {
-        console.log("Realtime subscription status:", status);
-      });
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "DELETE",
+            schema: "public",
+            table: "bookmarks",
+          },
+          (payload) => {
+            const old = payload.old as Partial<Bookmark>;
+            if (old.id) {
+              setBookmarks((prev) => prev.filter((b) => b.id !== old.id));
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log("Realtime subscription status:", status);
+        });
+    }
 
-    channelRef.current = channel;
+    setupRealtime();
+
+    // Keep auth token in sync on refresh
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.access_token) {
+          supabase.realtime.setAuth(session.access_token);
+        }
+      }
+    );
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channelInstance) {
+        supabase.removeChannel(channelInstance);
+      }
+      subscription.unsubscribe();
     };
   }, [userId]);
 

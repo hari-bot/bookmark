@@ -111,11 +111,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 **Solution:** I had to add the exact Supabase callback URL (`https://<ref>.supabase.co/auth/v1/callback`) as an authorized redirect URI in Google Cloud Console. I also had to add my app's callback (`/auth/callback`) to Supabase's Redirect URLs under Authentication settings. Both need to match for the OAuth flow to work.
 
-### 2. Realtime updates not showing across tabs
+### 2. Realtime INSERT events not syncing across tabs
 
-**Problem:** When I added a bookmark in one tab, it wouldn't appear in the other tab. The Supabase Realtime `postgres_changes` subscription for INSERT events wasn't delivering updates reliably.
+**Problem:** DELETE events synced across tabs fine, but INSERT events were silently dropped. Adding a bookmark in one tab wouldn't appear in the other.
 
-**Solution:** I used Supabase's **Broadcast** feature instead. When a bookmark is added, the app broadcasts a message on a shared channel. Other tabs listen for this broadcast and add the bookmark to their list. DELETE events still work fine through `postgres_changes`, so I kept that as-is. This hybrid approach (Broadcast for adds, postgres_changes for deletes) made cross-tab sync reliable.
+**Solution:** The Supabase Realtime WebSocket connection doesn't automatically receive the user's auth token — it's separate from the REST API client. Without the token, Supabase runs the RLS SELECT policy (`auth.uid() = user_id`), gets `null` for `auth.uid()`, and drops the INSERT event. The fix was to explicitly call `supabase.realtime.setAuth(session.access_token)` before subscribing, and `await` the session fetch to avoid a race condition where the subscription starts before the token is set.
 
 ### 3. Duplicate bookmarks appearing in the list
 
